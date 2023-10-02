@@ -15,6 +15,7 @@ IMAGE_TAG_BASE ?= jumphost.inbound.vz.bos2.lab:8443/lochoa/ibu-imager
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 
+default: help
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -44,3 +45,7 @@ docker-build: ## Build container image with the tool.
 
 docker-push: ## Push container image with the tool.
 	${ENGINE} push ${IMG}
+
+.PHONY: help
+help:   ## Shows this message.
+	@grep -E '^[a-zA-Z_\.\-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
