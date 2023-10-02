@@ -18,9 +18,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 // authFile is the path to the registry credentials used to push the OCI image
@@ -64,8 +65,8 @@ func create() {
 	//
 	log.Println("Saving list of running containers and clusterversion.")
 
-	// Check if the file /tmp/container_list.done does not exist
-	if _, err := os.Stat("/tmp/container_list.done"); os.IsNotExist(err) {
+	// Check if the file /var/tmp/container_list.done does not exist
+	if _, err := os.Stat("/var/tmp/container_list.done"); os.IsNotExist(err) {
 
 		// Create the directory /var/tmp/backup if it doesn't exist
 		log.Debug("Create backup directory at " + backupDir)
@@ -84,8 +85,8 @@ func create() {
 		err = runCMD(ocCMD)
 		check(err)
 
-		// Create the file /tmp/container_list.done
-		err = runCMD("touch /tmp/container_list.done")
+		// Create the file /var/tmp/container_list.done
+		err = runCMD("touch /var/tmp/container_list.done")
 		check(err)
 
 		log.Println("List of containers and clusterversion saved successfully.")
@@ -158,12 +159,13 @@ func create() {
 		// Build the tar command
 		args := []string{"czf", fmt.Sprintf("%svar.tgz", backupDir)}
 		for _, pattern := range excludePatterns {
-			args = append(args, "--exclude", pattern)
+			// We're handling the excluded patterns in bash, we need to single quote them to prevent expansion
+			args = append(args, "--exclude", fmt.Sprintf("'%s'", pattern))
 		}
 		args = append(args, "--selinux", sourceDir)
 
 		// Run the tar command
-		err = runCMD("tar" + strings.Join(args, " "))
+		err = runCMD("tar" + " " + strings.Join(args, " "))
 		check(err)
 
 		log.Println("Backup of /var created successfully.")
@@ -214,7 +216,7 @@ func create() {
 	if _, err := os.Stat(backupDir + "ostree.commit"); os.IsNotExist(err) {
 
 		// Execute 'ostree commit' command
-		ostreeCommitCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- ostree commit --branch %s %s > /var/tmp/backup/ostree.commit`, backupDir, backupDir)
+		ostreeCommitCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- ostree commit --branch %s %s > /var/tmp/backup/ostree.commit`, backupTag, backupDir)
 		err = runCMD(ostreeCommitCMD)
 		check(err)
 
@@ -226,58 +228,58 @@ func create() {
 	//
 	// Encapsulating and pushing backup OCI image
 	//
-	log.Println("Encapsulate and push backup OCI image.")
+	log.Printf("Encapsulate and push backup OCI image to %s:%s.", containerRegistry, backupTag)
 
 	// Execute 'ostree container encapsulate' command for backup OCI image
-	ostreeEncapsulateBackupCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'export REGISTRY_AUTH_FILE=%s && ostree container encapsulate %s registry:%s/ostmagic:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, backupTag, containerRegistry, backupTag)
+	ostreeEncapsulateBackupCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'REGISTRY_AUTH_FILE=%s ostree container encapsulate %s registry:%s:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, backupTag, containerRegistry, backupTag)
 	err = runCMD(ostreeEncapsulateBackupCMD)
 	check(err)
 
 	//
 	// Encapsulating and pushing base OCI image
 	//
-	log.Println("Encapsulate and push base OCI image.")
+	log.Printf("Encapsulate and push base OCI image to %s:%s.", containerRegistry, baseTag)
 
 	// Create base commit checksum file
-	ostreeBaseChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true).checksum' > /tmp/ostree.base.commit`)
+	ostreeBaseChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true).checksum' > /var/tmp/ostree.base.commit`)
 	err = runCMD(ostreeBaseChecksumCMD)
 	check(err)
 
 	// Read base commit from file
-	baseCommit, err := readLineFromFile("/tmp/ostree.base.commit")
+	baseCommit, err := readLineFromFile("/var/tmp/ostree.base.commit")
 
 	// Execute 'ostree container encapsulate' command for base OCI image
-	ostreeEncapsulateBaseCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'export REGISTRY_AUTH_FILE=%s && ostree container encapsulate %s registry:%s/ostmagic:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, baseCommit, containerRegistry, baseTag)
+	ostreeEncapsulateBaseCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'REGISTRY_AUTH_FILE=%s ostree container encapsulate %s registry:%s:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, baseCommit, containerRegistry, baseTag)
 	err = runCMD(ostreeEncapsulateBaseCMD)
 	check(err)
 
 	//
 	// Encapsulating and pushing parent OCI image
 	//
-	log.Println("Encapsulate and push parent OCI image.")
+	log.Printf("Encapsulate and push parent OCI image to %s:%s.", containerRegistry, parentTag)
 
 	// Create parent checksum file
-	ostreeHasParentChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true) | has("base-checksum")' > /tmp/ostree.has.parent`)
+	ostreeHasParentChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true) | has("base-checksum")' > /var/tmp/ostree.has.parent`)
 	err = runCMD(ostreeHasParentChecksumCMD)
 	check(err)
 
 	// Read hasParent commit from file
-	hasParent, err := readLineFromFile("/tmp/ostree.has.parent")
+	hasParent, err := readLineFromFile("/var/tmp/ostree.has.parent")
 
 	// Check if current ostree deployment has a parent commit
 	if hasParent == "true" {
 		log.Info("OCI image has a parent commit to be encapsulated.")
 
 		// Create parent commit checksum file
-		ostreeParentChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true)."base-checksum"' > /tmp/ostree.parent.commit`)
+		ostreeParentChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true)."base-checksum"' > /var/tmp/ostree.parent.commit`)
 		err = runCMD(ostreeParentChecksumCMD)
 		check(err)
 
 		// Read parent commit from file
-		parentCommit, err := readLineFromFile("/tmp/ostree.parent.commit")
+		parentCommit, err := readLineFromFile("/var/tmp/ostree.parent.commit")
 
 		// Execute 'ostree container encapsulate' command for parent OCI image
-		ostreeEncapsulateParentCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'export REGISTRY_AUTH_FILE=%s && ostree container encapsulate %s registry:%s/ostmagic:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, parentCommit, containerRegistry, parentTag)
+		ostreeEncapsulateParentCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'REGISTRY_AUTH_FILE=%s ostree container encapsulate %s registry:%s:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, parentCommit, containerRegistry, parentTag)
 		err = runCMD(ostreeEncapsulateParentCMD)
 		check(err)
 
