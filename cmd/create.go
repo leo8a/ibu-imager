@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/godbus/dbus"
 	"github.com/spf13/cobra"
 )
 
@@ -54,11 +55,22 @@ func create() {
 	var err error
 	log.Printf("OCI image creation has started")
 
+	// Check if containerRegistry was provided by the user
 	if containerRegistry == "" {
 		fmt.Printf(" *** Please provide a valid container registry to store the created OCI images *** \n")
 		log.Info("Skipping OCI image creation.")
 		return
 	}
+
+	// Connect to the system bus
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		log.Errorf("Failed to connect to D-Bus: %v", err)
+	}
+
+	// Create systemdObj to represent the systemd D-Bus interface
+	// used to stop kubelet and crio systemd services later on
+	systemdObj := conn.Object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
 
 	//
 	// Save list of running containers
@@ -93,7 +105,8 @@ func create() {
 	//
 	log.Println("Stop kubelet service")
 
-	err = execPrivilegeCommand("systemctl", "stop", "kubelet")
+	// Execute a D-Bus call to stop the kubelet service
+	err = systemdObj.Call("org.freedesktop.systemd1.Manager.StopUnit", 0, "kubelet.service", "replace").Err
 	check(err)
 
 	//
@@ -122,9 +135,9 @@ func create() {
 		err = runCMD(waitCMD)
 		check(err)
 
-		// Stop CRI-O runtime (repeated)
+		// Execute a D-Bus call to stop the CRI-O runtime
 		log.Debug("Stopping CRI-O engine")
-		err = execPrivilegeCommand("systemctl", "stop", "crio")
+		err = systemdObj.Call("org.freedesktop.systemd1.Manager.StopUnit", 0, "crio.service", "replace").Err
 		check(err)
 
 		log.Println("Running containers and CRI-O engine stopped successfully.")
