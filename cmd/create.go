@@ -75,7 +75,7 @@ func create() {
 
 		// Execute 'crictl ps -o json' command, parse the JSON output and extract image references using 'jq'
 		log.Debug("Save list of running containers")
-		criListContainers := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- crictl images -o json | jq -r '.images[] | .repoDigests[], .repoTags[]' > ` + backupDir + `containers.list`)
+		criListContainers := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- crictl images -o json | jq -r '.images[] | .repoDigests[], .repoTags[]' > ` + backupDir + `/containers.list`)
 		err = runCMD(criListContainers)
 		check(err)
 
@@ -102,11 +102,11 @@ func create() {
 	log.Println("Stopping containers and CRI-O runtime.")
 
 	// Store current status of CRI-O systemd
-	crioService := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- systemctl is-active crio > %scrio.systemd.status`, backupDir)
+	crioService := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- systemctl is-active crio > %s/crio.systemd.status`, backupDir)
 	_ = runCMD(crioService) // this commands returns 3 when crio is inactive
 
 	// Read CRI-O systemd status from file
-	crioSystemdStatus, err := readLineFromFile(backupDir + "crio.systemd.status")
+	crioSystemdStatus, _ := readLineFromFile(backupDir + "/crio.systemd.status")
 
 	if crioSystemdStatus == "active" {
 
@@ -138,7 +138,7 @@ func create() {
 	log.Println("Create backup datadir")
 
 	// Check if the backup file for /var doesn't exist
-	if _, err := os.Stat(backupDir + "var.tgz"); os.IsNotExist(err) {
+	if _, err := os.Stat(backupDir + "/var.tgz"); os.IsNotExist(err) {
 
 		// Define the 'exclude' patterns
 		excludePatterns := []string{
@@ -151,7 +151,7 @@ func create() {
 		}
 
 		// Build the tar command
-		args := []string{"czf", fmt.Sprintf("%svar.tgz", backupDir)}
+		args := []string{"czf", fmt.Sprintf("%s/var.tgz", backupDir)}
 		for _, pattern := range excludePatterns {
 			// We're handling the excluded patterns in bash, we need to single quote them to prevent expansion
 			args = append(args, "--exclude", fmt.Sprintf("'%s'", pattern))
@@ -168,10 +168,10 @@ func create() {
 	}
 
 	// Check if the backup file for /etc doesn't exist
-	if _, err := os.Stat(backupDir + "etc.tgz"); os.IsNotExist(err) {
+	if _, err := os.Stat(backupDir + "/etc.tgz"); os.IsNotExist(err) {
 
 		// Execute 'ostree admin config-diff' command and backup /etc
-		ostreeAdminCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- ostree admin config-diff | awk '{print "/etc/" $2}' | xargs tar czf %setc.tgz --selinux`, backupDir)
+		ostreeAdminCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- ostree admin config-diff | awk '{print "/etc/" $2}' | xargs tar czf %s/etc.tgz --selinux`, backupDir)
 		err = runCMD(ostreeAdminCMD)
 		check(err)
 
@@ -181,10 +181,10 @@ func create() {
 	}
 
 	// Check if the backup file for rpm-ostree doesn't exist
-	if _, err := os.Stat(backupDir + "rpm-ostree.json"); os.IsNotExist(err) {
+	if _, err := os.Stat(backupDir + "/rpm-ostree.json"); os.IsNotExist(err) {
 
 		// Execute 'rpm-ostree status' command and backup its output
-		rpmOStreeCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json > %srpm-ostree.json`, backupDir)
+		rpmOStreeCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json > %s/rpm-ostree.json`, backupDir)
 		err = runCMD(rpmOStreeCMD)
 		check(err)
 
@@ -194,10 +194,10 @@ func create() {
 	}
 
 	// Check if the backup file for mco-currentconfig doesn't exist
-	if _, err := os.Stat(backupDir + "mco-currentconfig.json"); os.IsNotExist(err) {
+	if _, err := os.Stat(backupDir + "/mco-currentconfig.json"); os.IsNotExist(err) {
 
 		// Execute 'ostree admin config-diff' command and backup mco-currentconfig
-		backupCurrentConfigCMD := fmt.Sprintf(`cp /etc/machine-config-daemon/currentconfig %smco-currentconfig.json`, backupDir)
+		backupCurrentConfigCMD := fmt.Sprintf(`cp /etc/machine-config-daemon/currentconfig %s/mco-currentconfig.json`, backupDir)
 		err = runCMD(backupCurrentConfigCMD)
 		check(err)
 
@@ -207,10 +207,10 @@ func create() {
 	}
 
 	// Check if the commit backup doesn't exist
-	if _, err := os.Stat(backupDir + "ostree.commit"); os.IsNotExist(err) {
+	if _, err := os.Stat(backupDir + "/ostree.commit"); os.IsNotExist(err) {
 
 		// Execute 'ostree commit' command
-		ostreeCommitCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- ostree commit --branch %s %s > /var/tmp/backup/ostree.commit`, backupTag, backupDir)
+		ostreeCommitCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- ostree commit --branch %s %s > %s/ostree.commit`, backupTag, backupDir, backupDir)
 		err = runCMD(ostreeCommitCMD)
 		check(err)
 
