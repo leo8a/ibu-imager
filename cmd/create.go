@@ -61,12 +61,12 @@ func create() {
 	}
 
 	//
-	// Save list of running containers and current clusterversion
+	// Save list of running containers
 	//
-	log.Println("Saving list of running containers and clusterversion.")
+	log.Println("Saving list of running containers.")
 
 	// Check if the file /var/tmp/container_list.done does not exist
-	if _, err := os.Stat("/var/tmp/container_list.done"); os.IsNotExist(err) {
+	if _, err = os.Stat("/var/tmp/container_list.done"); os.IsNotExist(err) {
 
 		// Create the directory /var/tmp/backup if it doesn't exist
 		log.Debug("Create backup directory at " + backupDir)
@@ -79,19 +79,13 @@ func create() {
 		err = runCMD(criListContainers)
 		check(err)
 
-		// Execute 'oc get clusterversion version -ojson' command and write the clusterversion JSON
-		log.Debug("Save current clusterversion")
-		ocCMD := fmt.Sprintf(`oc get clusterversion version -ojson --kubeconfig=%s > %s`, kubeconfigFile, backupDir+"clusterversion.json")
-		err = runCMD(ocCMD)
-		check(err)
-
 		// Create the file /var/tmp/container_list.done
 		err = runCMD("touch /var/tmp/container_list.done")
 		check(err)
 
-		log.Println("List of containers and clusterversion saved successfully.")
+		log.Println("List of containers saved successfully.")
 	} else {
-		log.Println("Skipping list of containers and clusterversion already exists.")
+		log.Println("Skipping list of containers already exists.")
 	}
 
 	//
