@@ -256,7 +256,6 @@ func create() {
 	//
 	// Encapsulating and pushing parent OCI image
 	//
-	log.Printf("Encapsulate and push parent OCI image to %s:%s.", containerRegistry, parentTag)
 
 	// Create parent checksum file
 	ostreeHasParentChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true) | has("base-checksum")' > /var/tmp/ostree.has.parent`)
@@ -279,6 +278,7 @@ func create() {
 		parentCommit, err := readLineFromFile("/var/tmp/ostree.parent.commit")
 
 		// Execute 'ostree container encapsulate' command for parent OCI image
+		log.Printf("Encapsulate and push parent OCI image to %s:%s.", containerRegistry, parentTag)
 		ostreeEncapsulateParentCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'REGISTRY_AUTH_FILE=%s ostree container encapsulate %s registry:%s:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, parentCommit, containerRegistry, parentTag)
 		err = runCMD(ostreeEncapsulateParentCMD)
 		check(err)
