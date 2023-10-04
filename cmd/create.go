@@ -129,7 +129,7 @@ func create() {
 		err = runCMD(criStopContainers)
 		check(err)
 
-		// Waiting for containers to stop (repeated)
+		// Waiting for containers to stop
 		waitCMD := fmt.Sprintf(`while crictl ps -q | grep -q . ; do sleep 1 ; done`)
 		log.Debug("Wait for containers to stop")
 		err = runCMD(waitCMD)
@@ -172,7 +172,7 @@ func create() {
 		args = append(args, "--selinux", sourceDir)
 
 		// Run the tar command
-		err = runCMD("tar" + " " + strings.Join(args, " "))
+		err = runCMD("tar " + strings.Join(args, " "))
 		check(err)
 
 		log.Println("Backup of /var created successfully.")
@@ -207,9 +207,9 @@ func create() {
 	}
 
 	// Check if the backup file for mco-currentconfig doesn't exist
-	if _, err := os.Stat(backupDir + "/mco-currentconfig.json"); os.IsNotExist(err) {
+	if _, err = os.Stat(backupDir + "/mco-currentconfig.json"); os.IsNotExist(err) {
 
-		// Execute 'ostree admin config-diff' command and backup mco-currentconfig
+		// Execute 'copy' command and backup mco-currentconfig
 		backupCurrentConfigCMD := fmt.Sprintf(`cp /etc/machine-config-daemon/currentconfig %s/mco-currentconfig.json`, backupDir)
 		err = runCMD(backupCurrentConfigCMD)
 		check(err)
@@ -220,7 +220,7 @@ func create() {
 	}
 
 	// Check if the commit backup doesn't exist
-	if _, err := os.Stat(backupDir + "/ostree.commit"); os.IsNotExist(err) {
+	if _, err = os.Stat(backupDir + "/ostree.commit"); os.IsNotExist(err) {
 
 		// Execute 'ostree commit' command
 		ostreeCommitCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- ostree commit --branch %s %s > %s/ostree.commit`, backupTag, backupDir, backupDir)
