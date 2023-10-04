@@ -124,7 +124,7 @@ func create() {
 	if crioSystemdStatus == "active" {
 
 		// CRI-O is active, so stop running containers
-		criStopContainers := fmt.Sprintf(`crictl ps -q | xargs --no-run-if-empty crictl stop --timeout 5`)
+		criStopContainers := fmt.Sprintf(`crictl ps -q | xargs --no-run-if-empty --max-args 1 --max-procs 10 crictl stop --timeout 5`)
 		log.Debug("Stop running containers")
 		err = runCMD(criStopContainers)
 		check(err)
