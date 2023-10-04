@@ -23,6 +23,7 @@ import (
 
 	"github.com/godbus/dbus"
 	"github.com/spf13/cobra"
+	"io/ioutil"
 )
 
 // authFile is the path to the registry credentials used to push the OCI image
@@ -92,7 +93,7 @@ func create() {
 		check(err)
 
 		// Create the file /var/tmp/container_list.done
-		err = runCMD("touch /var/tmp/container_list.done")
+		_, err = os.Create("/var/tmp/container_list.done")
 		check(err)
 
 		log.Println("List of containers saved successfully.")
@@ -233,66 +234,75 @@ func create() {
 	}
 
 	//
-	// Encapsulating and pushing backup OCI image
+	// Building and pushing OCI image
 	//
-	log.Printf("Encapsulate and push backup OCI image to %s:%s.", containerRegistry, backupTag)
+	log.Printf("Build and push OCI image to %s:%s.", containerRegistry, backupTag)
 
-	// Execute 'ostree container encapsulate' command for backup OCI image
-	ostreeEncapsulateBackupCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'REGISTRY_AUTH_FILE=%s ostree container encapsulate %s registry:%s:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, backupTag, containerRegistry, backupTag)
-	err = runCMD(ostreeEncapsulateBackupCMD)
+	// Get the current ostree deployment name booted and save it
+	bootedOSName := fmt.Sprintf(
+		`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true) | .osname' > /var/tmp/booted.osname`)
+	err = runCMD(bootedOSName)
 	check(err)
 
-	//
-	// Encapsulating and pushing base OCI image
-	//
-	log.Printf("Encapsulate and push base OCI image to %s:%s.", containerRegistry, baseTag)
-
-	// Create base commit checksum file
-	ostreeBaseChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true).checksum' > /var/tmp/ostree.base.commit`)
-	err = runCMD(ostreeBaseChecksumCMD)
+	// Get the current ostree deployment id booted and save it
+	bootedID := fmt.Sprintf(
+		`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true) | .id' > /var/tmp/booted.id`)
+	err = runCMD(bootedID)
 	check(err)
 
-	// Read base commit from file
-	baseCommit, err := readLineFromFile("/var/tmp/ostree.base.commit")
-
-	// Execute 'ostree container encapsulate' command for base OCI image
-	ostreeEncapsulateBaseCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'REGISTRY_AUTH_FILE=%s ostree container encapsulate %s registry:%s:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, baseCommit, containerRegistry, baseTag)
-	err = runCMD(ostreeEncapsulateBaseCMD)
+	// Read current ostree deployment name from file
+	bootedOSName_, err := readLineFromFile("/var/tmp/booted.osname")
 	check(err)
 
-	//
-	// Encapsulating and pushing parent OCI image
-	//
-
-	// Create parent checksum file
-	ostreeHasParentChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true) | has("base-checksum")' > /var/tmp/ostree.has.parent`)
-	err = runCMD(ostreeHasParentChecksumCMD)
+	// Read current ostree deployment id from file
+	bootedID_, err := readLineFromFile("/var/tmp/booted.id")
 	check(err)
 
-	// Read hasParent commit from file
-	hasParent, err := readLineFromFile("/var/tmp/ostree.has.parent")
+	// Get booted ostree deployment sha
+	bootedDeployment := strings.Split(bootedID_, "-")[1]
 
-	// Check if current ostree deployment has a parent commit
-	if hasParent == "true" {
-		log.Info("OCI image has a parent commit to be encapsulated.")
+	// Check if the backup file for .origin doesn't exist
+	originFileName := fmt.Sprintf("%s/ostree-%s.origin", backupDir, bootedDeployment)
+	if _, err := os.Stat(originFileName); os.IsNotExist(err) {
 
-		// Create parent commit checksum file
-		ostreeParentChecksumCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid -- rpm-ostree status -v --json | jq -r '.deployments[] | select(.booted == true)."base-checksum"' > /var/tmp/ostree.parent.commit`)
-		err = runCMD(ostreeParentChecksumCMD)
+		// Execute 'copy' command and backup mco-currentconfig
+		backupOriginCMD := fmt.Sprintf(
+			`nsenter --target 1 --cgroup --mount --ipc --pid -- cp /ostree/deploy/%s/deploy/%s.origin %s`, bootedOSName_, bootedDeployment, originFileName)
+		err = runCMD(backupOriginCMD)
 		check(err)
 
-		// Read parent commit from file
-		parentCommit, err := readLineFromFile("/var/tmp/ostree.parent.commit")
-
-		// Execute 'ostree container encapsulate' command for parent OCI image
-		log.Printf("Encapsulate and push parent OCI image to %s:%s.", containerRegistry, parentTag)
-		ostreeEncapsulateParentCMD := fmt.Sprintf(`nsenter --target 1 --cgroup --mount --ipc --pid sh -c 'REGISTRY_AUTH_FILE=%s ostree container encapsulate %s registry:%s:%s --repo /ostree/repo --label ostree.bootable=true'`, authFile, parentCommit, containerRegistry, parentTag)
-		err = runCMD(ostreeEncapsulateParentCMD)
-		check(err)
-
+		log.Println("Backup of .origin created successfully.")
 	} else {
-		log.Info("Skipping encapsulate parent commit as it is not present.")
+		log.Println("Skipping .origin backup as it already exists.")
 	}
+
+	// Create a temporary file for the Dockerfile content
+	tmpfile, err := ioutil.TempFile("/var/tmp", "dockerfile-")
+	if err != nil {
+		log.Errorf("Error creating temporary file: %s", err)
+	}
+	defer os.Remove(tmpfile.Name()) // Clean up the temporary file
+
+	// Write the content to the temporary file
+	_, err = tmpfile.WriteString(containerFileContent)
+	if err != nil {
+		log.Errorf("Error writing to temporary file: %s", err)
+	}
+	tmpfile.Close() // Close the temporary file
+
+	// Build the single OCI image (note: We could include --squash-all option, as well)
+	containerBuildCMD := fmt.Sprintf(
+		`nsenter --target 1 --cgroup --mount --ipc --pid -- podman build -f %s -t %s:%s --build-context ostreerepo=/sysroot/ostree/repo %s`,
+		tmpfile.Name(), containerRegistry, backupTag, backupDir)
+	err = runCMD(containerBuildCMD)
+	check(err)
+
+	// Push the created OCI image to user's repository
+	containerPushCMD := fmt.Sprintf(
+		`nsenter --target 1 --cgroup --mount --ipc --pid -- podman push --authfile %s %s:%s`,
+		authFile, containerRegistry, backupTag)
+	err = runCMD(containerPushCMD)
+	check(err)
 
 	log.Printf("OCI image created successfully!")
 }

@@ -25,14 +25,8 @@ import (
 )
 
 const (
-	// Default backup tag
-	backupTag = "backup"
-	// Default base tag
-	baseTag = "base"
-	// Default parent tag
-	parentTag = "parent"
-	// Default ostreeAuthFile location
-	ostreeAuthFile = "/run/ostree/auth.json"
+	// Default OCI image tag
+	backupTag = "oneimage"
 	// Pull secret. Written by the machine-config-operator
 	imageRegistryAuthFile = "/var/lib/kubelet/config.json"
 	// sourceDir is the directory where the datadir is backed up
@@ -42,6 +36,13 @@ const (
 	// Default kubeconfigFile location
 	kubeconfigFile = "/etc/kubernetes/static-pod-resources/kube-apiserver-certs/secrets/node-kubeconfigs/lb-ext.kubeconfig"
 )
+
+// containerFileContent is the Dockerfile content for the IBU seed image
+const containerFileContent = `
+FROM scratch
+COPY . /
+COPY --from=ostreerepo . /ostree/repo
+`
 
 func check(err error) {
 	if err != nil {
