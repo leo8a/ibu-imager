@@ -51,26 +51,14 @@ func check(err error) {
 	}
 }
 
-// runCMD executes a command and returns the stdout output.
-func runCMD(command string) error {
-	log.Debug("Running command: " + command)
-	cmd := exec.Command("bash", "-c", command)
-	if verbose {
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-	}
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
-}
-
-// execPrivilegeCommand execute a command in the host environment via nsenter
+// runInHostNamespace execute a command in the host environment via nsenter
 // inspired from: https://github.com/openshift/assisted-installer/blob/master/src/ops/ops.go#L881-L907
-func execPrivilegeCommand(command string, args ...string) error {
-	// nsenter is used here to launch processes inside the container in a way that makes said processes feel
-	// and behave as if they're running on the host directly rather than inside the container
-	commandBase := "nsenter"
+func runInHostNamespace(command string, args ...string) error {
 
 	arguments := []string{
+		// nsenter is used here to launch processes inside the container in a way that makes said processes feel
+		// and behave as if they're running on the host directly rather than inside the container
+		"nsenter",
 		"--target", "1",
 		// Entering the cgroup namespace is not required for podman on CoreOS (where the
 		// agent typically runs), but it's needed on some Fedora versions and
@@ -89,14 +77,16 @@ func execPrivilegeCommand(command string, args ...string) error {
 	}
 
 	arguments = append(arguments, args...)
-	cmd := exec.Command(commandBase, arguments...)
+	log.Debugf("Running command: " + strings.Join(arguments, " "))
 
-	_, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("error running %s %s: %s", command, strings.Join(args, " "), err)
+	cmd := exec.Command("bash", "-c", strings.Join(arguments, " "))
+	if verbose {
+		cmd.Stderr = os.Stderr
 	}
 
-	log.Debugf("Running command: " + commandBase + " " + strings.Join(arguments, " "))
+	_, err := cmd.Output()
+	check(err)
+
 	return nil
 }
 
