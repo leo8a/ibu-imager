@@ -42,6 +42,7 @@ COPY . /
 COPY --from=ostreerepo . /ostree/repo
 `
 
+// check is a helper function to simply check for errors
 func check(err error) {
 	if err != nil {
 		log.Errorf("An error occurred: %s", err.Error())
@@ -51,7 +52,7 @@ func check(err error) {
 
 // runInHostNamespace execute a command in the host environment via nsenter
 // inspired from: https://github.com/openshift/assisted-installer/blob/master/src/ops/ops.go#L881-L907
-func runInHostNamespace(command string, args ...string) error {
+func runInHostNamespace(command string, args ...string) ([]byte, error) {
 
 	arguments := []string{
 		// nsenter is used here to launch processes inside the container in a way that makes said processes feel
@@ -67,7 +68,10 @@ func runInHostNamespace(command string, args ...string) error {
 		// The mount namespace is required for podman to access the host's container
 		// storage
 		"--mount",
-		// TODO: Document why we need the IPC namespace
+		// The ipc option ensures that the nsenter command enters the same IPC namespace
+		// as the init process (PID 1) before executing any commands.
+		// This allows the command to access and manipulate IPC resources within that
+		// specific namespace, if needed.
 		"--ipc",
 		"--pid",
 		"--",
@@ -82,10 +86,10 @@ func runInHostNamespace(command string, args ...string) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	_, err := cmd.Output()
+	rawOutput, err := cmd.Output()
 	check(err)
 
-	return nil
+	return rawOutput, nil
 }
 
 // readLineFromFile reads the first line from a file and returns it as a string.

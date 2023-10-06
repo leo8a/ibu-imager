@@ -87,9 +87,9 @@ func create() {
 
 		// Execute 'crictl ps -o json' command, parse the JSON output and extract image references using 'jq'
 		log.Debug("Save list of running containers")
-		criListContainers := runInHostNamespace(
+		_, err = runInHostNamespace(
 			"crictl", append([]string{"images", "-o", "json", "|", "jq", "-r", "'.images[] | .repoDigests[], .repoTags[]'"}, ">", backupDir+"/containers.list")...)
-		check(criListContainers)
+		check(err)
 
 		// Create the file /var/tmp/container_list.done
 		_, err = os.Create("/var/tmp/container_list.done")
@@ -115,8 +115,9 @@ func create() {
 	log.Println("Stopping containers and CRI-O runtime.")
 
 	// Store current status of CRI-O systemd
-	_ = runInHostNamespace(
+	_, err = runInHostNamespace(
 		"systemctl", append([]string{"is-active", "crio"}, ">", backupDir+"/crio.systemd.status")...)
+	check(err)
 
 	// Read CRI-O systemd status from file
 	crioSystemdStatus, _ := readLineFromFile(backupDir + "/crio.systemd.status")
@@ -125,9 +126,9 @@ func create() {
 
 		// CRI-O is active, so stop running containers
 		log.Debug("Stop running containers")
-		criStopContainers := runInHostNamespace(
+		_, err = runInHostNamespace(
 			"crictl", []string{"ps", "-q", "|", "xargs", "--no-run-if-empty", "--max-args", "1", "--max-procs", "10", "crictl", "stop", "--timeout", "5"}...)
-		check(criStopContainers)
+		check(err)
 
 		// Waiting for containers to stop (TODO: implement this using runInHostNamespace)
 		//waitCMD := fmt.Sprintf(`while crictl ps -q | grep -q . ; do sleep 1 ; done`)
@@ -152,7 +153,7 @@ func create() {
 
 	// Check if the backup file for /var doesn't exist
 	varTarFile := backupDir + "/var.tgz"
-	if _, err := os.Stat(varTarFile); os.IsNotExist(err) {
+	if _, err = os.Stat(varTarFile); os.IsNotExist(err) {
 
 		// Define the 'exclude' patterns
 		excludePatterns := []string{
@@ -173,7 +174,7 @@ func create() {
 		tarArgs = append(tarArgs, "--selinux", sourceDir)
 
 		// Run the tar command
-		err = runInHostNamespace("tar", strings.Join(tarArgs, " "))
+		_, err = runInHostNamespace("tar", strings.Join(tarArgs, " "))
 		check(err)
 
 		log.Println("Backup of /var created successfully.")
@@ -182,10 +183,10 @@ func create() {
 	}
 
 	// Check if the backup file for /etc doesn't exist
-	if _, err := os.Stat(backupDir + "/etc.tgz"); os.IsNotExist(err) {
+	if _, err = os.Stat(backupDir + "/etc.tgz"); os.IsNotExist(err) {
 
 		// Execute 'ostree admin config-diff' command and backup /etc
-		ostreeAdminCMD := runInHostNamespace(
+		_, ostreeAdminCMD := runInHostNamespace(
 			"ostree", []string{"admin", "config-diff", "|", "awk", `'{print "/etc/" $2}'`, "|", "xargs", "tar", "czf", backupDir + "/etc.tgz", "--selinux"}...)
 		check(ostreeAdminCMD)
 
@@ -198,9 +199,9 @@ func create() {
 	if _, err = os.Stat(backupDir + "/mco-currentconfig.json"); os.IsNotExist(err) {
 
 		// Execute 'copy' command and backup mco-currentconfig
-		backupCurrentConfigCMD := runInHostNamespace(
+		_, err = runInHostNamespace(
 			"cp", "/etc/machine-config-daemon/currentconfig", backupDir+"/mco-currentconfig.json")
-		check(backupCurrentConfigCMD)
+		check(err)
 
 		log.Println("Backup of mco-currentconfig created successfully.")
 	} else {
@@ -211,9 +212,9 @@ func create() {
 	if _, err = os.Stat(backupDir + "/ostree.commit"); os.IsNotExist(err) {
 
 		// Execute 'ostree commit' command
-		ostreeCommitCMD := runInHostNamespace(
+		_, err = runInHostNamespace(
 			"ostree", append([]string{"commit", "--branch", backupTag, backupDir}, ">", backupDir+"/ostree.commit")...)
-		check(ostreeCommitCMD)
+		check(err)
 
 		log.Debug("Commit backup created successfully.")
 	} else {
@@ -226,14 +227,14 @@ func create() {
 	log.Printf("Build and push OCI image to %s:%s.", containerRegistry, backupTag)
 
 	// Get the current ostree deployment name booted and save it
-	bootedOSName := runInHostNamespace(
+	_, err = runInHostNamespace(
 		"rpm-ostree", append([]string{"status", "-v", "--json", "|", "jq", "-r", "'.deployments[] | select(.booted == true) | .osname'"}, ">", "/var/tmp/booted.osname")...)
-	check(bootedOSName)
+	check(err)
 
 	// Get the current ostree deployment id booted and save it
-	bootedID := runInHostNamespace(
+	_, err = runInHostNamespace(
 		"rpm-ostree", append([]string{"status", "-v", "--json", "|", "jq", "-r", "'.deployments[] | select(.booted == true) | .id'"}, ">", "/var/tmp/booted.id")...)
-	check(bootedID)
+	check(err)
 
 	// Read current ostree deployment name from file
 	bootedOSName_, err := readLineFromFile("/var/tmp/booted.osname")
@@ -251,9 +252,9 @@ func create() {
 	if _, err = os.Stat(originFileName); os.IsNotExist(err) {
 
 		// Execute 'copy' command and backup .origin file
-		backupOriginCMD := runInHostNamespace(
+		_, err = runInHostNamespace(
 			"cp", []string{"/ostree/deploy/" + bootedOSName_ + "/deploy/" + bootedDeployment + ".origin", originFileName}...)
-		check(backupOriginCMD)
+		check(err)
 
 		log.Println("Backup of .origin created successfully.")
 	} else {
@@ -275,14 +276,20 @@ func create() {
 	tmpfile.Close() // Close the temporary file
 
 	// Build the single OCI image (note: We could include --squash-all option, as well)
-	containerBuildCMD := runInHostNamespace(
-		"podman", []string{"build", "-f", tmpfile.Name(), "-t", containerRegistry + ":" + backupTag, "--build-context", "ostreerepo=/sysroot/ostree/repo", backupDir}...)
-	check(containerBuildCMD)
+	_, err = runInHostNamespace(
+		"podman", []string{"build",
+			"-f", tmpfile.Name(),
+			"-t", containerRegistry + ":" + backupTag,
+			"--build-context", "ostreerepo=/sysroot/ostree/repo",
+			backupDir}...)
+	check(err)
 
 	// Push the created OCI image to user's repository
-	containerPushCMD := runInHostNamespace(
-		"podman", []string{"push", "--authfile", authFile, containerRegistry + ":" + backupTag}...)
-	check(containerPushCMD)
+	_, err = runInHostNamespace(
+		"podman", []string{"push",
+			"--authfile", authFile,
+			containerRegistry + ":" + backupTag}...)
+	check(err)
 
 	log.Printf("OCI image created successfully!")
 }
