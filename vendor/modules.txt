@@ -1,3 +1,6 @@
+# github.com/godbus/dbus v4.1.0+incompatible
+## explicit
+github.com/godbus/dbus
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
@@ -17,3 +20,6 @@ github.com/spf13/pflag
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
+# gopkg.in/yaml.v3 v3.0.1
+## explicit
+gopkg.in/yaml.v3

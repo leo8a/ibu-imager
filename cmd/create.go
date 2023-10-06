@@ -40,6 +40,9 @@ var createCmd = &cobra.Command{
 	},
 }
 
+// rpmOstreeClient creates a new rpm ostree client for the IBU imager
+var rpmOstreeClient = NewClient("ibu-imager")
+
 func init() {
 
 	// Add create command
@@ -225,27 +228,20 @@ func create() {
 	// Building and pushing OCI image
 	//
 	log.Printf("Build and push OCI image to %s:%s.", containerRegistry, backupTag)
+	log.Debug(rpmOstreeClient.RpmOstreeVersion()) // If verbose, also dump out current rpm-ostree version available
 
-	// Get the current ostree deployment name booted and save it
-	_, err = runInHostNamespace(
-		"rpm-ostree", append([]string{"status", "-v", "--json", "|", "jq", "-r", "'.deployments[] | select(.booted == true) | .osname'"}, ">", "/var/tmp/booted.osname")...)
+	// Get the current status of rpm-ostree daemon in the host
+	statusRpmOstree, err := rpmOstreeClient.QueryStatus()
 	check(err)
 
-	// Get the current ostree deployment id booted and save it
-	_, err = runInHostNamespace(
-		"rpm-ostree", append([]string{"status", "-v", "--json", "|", "jq", "-r", "'.deployments[] | select(.booted == true) | .id'"}, ">", "/var/tmp/booted.id")...)
-	check(err)
+	// Get OSName for booted ostree deployment
+	bootedOSName := statusRpmOstree.Deployments[0].OSName
 
-	// Read current ostree deployment name from file
-	bootedOSName_, err := readLineFromFile("/var/tmp/booted.osname")
-	check(err)
+	// Get ID for booted ostree deployment
+	bootedID := statusRpmOstree.Deployments[0].ID
 
-	// Read current ostree deployment id from file
-	bootedID_, err := readLineFromFile("/var/tmp/booted.id")
-	check(err)
-
-	// Get booted ostree deployment sha
-	bootedDeployment := strings.Split(bootedID_, "-")[1]
+	// Get SHA for booted ostree deployment
+	bootedDeployment := strings.Split(bootedID, "-")[1]
 
 	// Check if the backup file for .origin doesn't exist
 	originFileName := fmt.Sprintf("%s/ostree-%s.origin", backupDir, bootedDeployment)
@@ -253,7 +249,7 @@ func create() {
 
 		// Execute 'copy' command and backup .origin file
 		_, err = runInHostNamespace(
-			"cp", []string{"/ostree/deploy/" + bootedOSName_ + "/deploy/" + bootedDeployment + ".origin", originFileName}...)
+			"cp", []string{"/ostree/deploy/" + bootedOSName + "/deploy/" + bootedDeployment + ".origin", originFileName}...)
 		check(err)
 
 		log.Println("Backup of .origin created successfully.")
