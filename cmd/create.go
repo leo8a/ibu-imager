@@ -23,7 +23,6 @@ import (
 
 	"github.com/godbus/dbus"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 )
 
 // authFile is the path to the registry credentials used to push the OCI image
@@ -195,19 +194,6 @@ func create() {
 		log.Println("Skipping etc backup as it already exists.")
 	}
 
-	// Check if the backup file for rpm-ostree doesn't exist
-	if _, err := os.Stat(backupDir + "/rpm-ostree.json"); os.IsNotExist(err) {
-
-		// Execute 'rpm-ostree status' command and backup its output
-		rpmOStreeCMD := runInHostNamespace(
-			"rpm-ostree", append([]string{"status", "-v", "--json"}, ">", backupDir+"/rpm-ostree.json")...)
-		check(rpmOStreeCMD)
-
-		log.Println("Backup of rpm-ostree created successfully.")
-	} else {
-		log.Println("Skipping rpm-ostree backup as it already exists.")
-	}
-
 	// Check if the backup file for mco-currentconfig doesn't exist
 	if _, err = os.Stat(backupDir + "/mco-currentconfig.json"); os.IsNotExist(err) {
 
@@ -275,7 +261,7 @@ func create() {
 	}
 
 	// Create a temporary file for the Dockerfile content
-	tmpfile, err := ioutil.TempFile("/var/tmp", "dockerfile-")
+	tmpfile, err := os.CreateTemp("/var/tmp", "dockerfile-")
 	if err != nil {
 		log.Errorf("Error creating temporary file: %s", err)
 	}

@@ -33,8 +33,6 @@ const (
 	sourceDir = "/var"
 	// backupDir is the directory where the ostree backup will be
 	backupDir = "/var/tmp/backup"
-	// Default kubeconfigFile location
-	kubeconfigFile = "/etc/kubernetes/static-pod-resources/kube-apiserver-certs/secrets/node-kubeconfigs/lb-ext.kubeconfig"
 )
 
 // containerFileContent is the Dockerfile content for the IBU seed image
