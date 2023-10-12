@@ -223,17 +223,30 @@ func create() {
 		log.Println("Skipping ostree backup as it already exists.")
 	}
 
-	// Check if the commit backup doesn't exist
-	if _, err = os.Stat(backupDir + "/ostree.commit"); os.IsNotExist(err) {
+	// Check if the backup file for rpm-ostree doesn't exist
+	if _, err = os.Stat(backupDir + "/rpm-ostree.json"); os.IsNotExist(err) {
 
-		// Execute 'ostree commit' command
+		// Execute 'rpm-ostree status' command and backup mco-currentconfig
 		_, err = runInHostNamespace(
-			"ostree", append([]string{"commit", "--branch", backupTag, backupDir}, ">", backupDir+"/ostree.commit")...)
+			"rpm-ostree", append([]string{"status", "-v", "--json"}, ">", backupDir+"/rpm-ostree.json")...)
 		check(err)
 
-		log.Debug("Commit backup created successfully.")
+		log.Println("Backup of rpm-ostree.json created successfully.")
 	} else {
-		log.Debug("Skipping backup commit as it already exists.")
+		log.Println("Skipping rpm-ostree.json backup as it already exists.")
+	}
+
+	// Check if the backup file for mco-currentconfig doesn't exist
+	if _, err = os.Stat(backupDir + "/mco-currentconfig.json"); os.IsNotExist(err) {
+
+		// Execute 'copy' command and backup mco-currentconfig
+		_, err = runInHostNamespace(
+			"cp", "/etc/machine-config-daemon/currentconfig", backupDir+"/mco-currentconfig.json")
+		check(err)
+
+		log.Println("Backup of mco-currentconfig created successfully.")
+	} else {
+		log.Println("Skipping mco-currentconfig backup as it already exists.")
 	}
 
 	//
@@ -288,7 +301,6 @@ func create() {
 		"podman", []string{"build",
 			"-f", tmpfile.Name(),
 			"-t", containerRegistry + ":" + backupTag,
-			"--build-context", "ostreerepo=/sysroot/ostree/repo",
 			backupDir}...)
 	check(err)
 

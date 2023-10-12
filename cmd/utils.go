@@ -41,7 +41,6 @@ const (
 const containerFileContent = `
 FROM scratch
 COPY . /
-COPY --from=ostreerepo . /ostree/repo
 `
 
 // check is a helper function to simply check for errors
