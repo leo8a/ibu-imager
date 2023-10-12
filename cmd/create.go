@@ -76,9 +76,9 @@ func create() {
 	systemdObj := conn.Object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
 
 	//
-	// Save list of running containers
+	// Save list of running containers and current clusterversion
 	//
-	log.Println("Saving list of running containers.")
+	log.Println("Saving list of running containers, catalogsources, and clusterversion.")
 
 	// Check if the file /var/tmp/container_list.done does not exist
 	if _, err = os.Stat("/var/tmp/container_list.done"); os.IsNotExist(err) {
@@ -88,19 +88,31 @@ func create() {
 		err = os.MkdirAll(backupDir, os.ModePerm)
 		check(err)
 
-		// Execute 'crictl ps -o json' command, parse the JSON output and extract image references using 'jq'
+		// Execute 'crictl images -o json' command, parse the JSON output and extract image references using 'jq'
 		log.Debug("Save list of running containers")
 		_, err = runInHostNamespace(
 			"crictl", append([]string{"images", "-o", "json", "|", "jq", "-r", "'.images[] | .repoDigests[], .repoTags[]'"}, ">", backupDir+"/containers.list")...)
+		check(err)
+
+		// Execute 'oc get catalogsource' command, parse the JSON output and extract image references using 'jq'
+		log.Debug("Save catalog source images")
+		_, err = runInHostNamespace(
+			"oc", append([]string{"get", "catalogsource", "-A", "-o", "json", "--kubeconfig", kubeconfigFile, "|", "jq", "-r", "'.items[].spec.image'"}, ">", backupDir+"/catalogimages.list")...)
+		check(err)
+
+		// Execute 'oc get clusterversion' command and save it
+		log.Debug("Save clusterversion to file")
+		_, err = runInHostNamespace(
+			"oc", append([]string{"get", "clusterversion", "version", "-o", "json", "--kubeconfig", kubeconfigFile}, ">", backupDir+"/clusterversion.json")...)
 		check(err)
 
 		// Create the file /var/tmp/container_list.done
 		_, err = os.Create("/var/tmp/container_list.done")
 		check(err)
 
-		log.Println("List of containers saved successfully.")
+		log.Println("List of containers, catalogsources, and clusterversion saved successfully.")
 	} else {
-		log.Println("Skipping list of containers already exists.")
+		log.Println("Skipping list of containers, catalogsources, and clusterversion already exists.")
 	}
 
 	//
