@@ -201,26 +201,26 @@ func create() {
 	if _, err = os.Stat(backupDir + "/etc.tgz"); os.IsNotExist(err) {
 
 		// Execute 'ostree admin config-diff' command and backup /etc
-		_, ostreeAdminCMD := runInHostNamespace(
+		_, err = runInHostNamespace(
 			"ostree", []string{"admin", "config-diff", "|", "awk", `'{print "/etc/" $2}'`, "|", "xargs", "tar", "czf", backupDir + "/etc.tgz", "--selinux"}...)
-		check(ostreeAdminCMD)
+		check(err)
 
 		log.Println("Backup of /etc created successfully.")
 	} else {
 		log.Println("Skipping etc backup as it already exists.")
 	}
 
-	// Check if the backup file for mco-currentconfig doesn't exist
-	if _, err = os.Stat(backupDir + "/mco-currentconfig.json"); os.IsNotExist(err) {
+	// Check if the backup file for ostree doesn't exist
+	if _, err = os.Stat(backupDir + "/ostree.tgz"); os.IsNotExist(err) {
 
-		// Execute 'copy' command and backup mco-currentconfig
+		// Execute 'tar' command and backup /etc
 		_, err = runInHostNamespace(
-			"cp", "/etc/machine-config-daemon/currentconfig", backupDir+"/mco-currentconfig.json")
+			"tar", []string{"czf", backupDir + "/ostree.tgz", "--selinux", "-C", "/ostree/repo", "."}...)
 		check(err)
 
-		log.Println("Backup of mco-currentconfig created successfully.")
+		log.Println("Backup of ostree created successfully.")
 	} else {
-		log.Println("Skipping mco-currentconfig backup as it already exists.")
+		log.Println("Skipping ostree backup as it already exists.")
 	}
 
 	// Check if the commit backup doesn't exist
