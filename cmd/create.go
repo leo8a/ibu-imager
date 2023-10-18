@@ -200,9 +200,14 @@ func create() {
 	// Check if the backup file for /etc doesn't exist
 	if _, err = os.Stat(backupDir + "/etc.tgz"); os.IsNotExist(err) {
 
-		// Execute 'ostree admin config-diff' command and backup /etc
+		// Execute 'ostree admin config-diff' command and backup etc.deletions
 		_, err = runInHostNamespace(
-			"ostree", []string{"admin", "config-diff", "|", "awk", `'{print "/etc/" $2}'`, "|", "xargs", "tar", "czf", backupDir + "/etc.tgz", "--selinux"}...)
+			"ostree", append([]string{"admin", "config-diff", "|", "awk", `'$1 == "D" {print "/etc/" $2}'`}, ">", backupDir+"/etc.deletions")...)
+		check(err)
+
+		// Execute 'ostree admin config-diff' command and backup content in /etc
+		_, err = runInHostNamespace(
+			"ostree", []string{"admin", "config-diff", "|", "awk", `'$1 != "D" {print "/etc/" $2}'`, "|", "xargs", "tar", "czf", backupDir + "/etc.tgz", "--selinux"}...)
 		check(err)
 
 		log.Println("Backup of /etc created successfully.")
