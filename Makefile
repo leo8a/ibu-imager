@@ -31,6 +31,16 @@ vet: ## Run go vet against code.
 deps-update: ## Run go mod tidy and vendor against code.
 	go mod tidy && go mod vendor
 
+.PHONY: shellcheck
+shellcheck: ## Run shellcheck
+	@echo "Running shellcheck"
+	hack/shellcheck.sh
+
+.PHONY: bashate
+bashate: ## Run bashate
+	@echo "Running bashate"
+	hack/bashate.sh
+
 
 ##@ Build
 
