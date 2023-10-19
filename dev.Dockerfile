@@ -6,7 +6,7 @@ ENV CRIO_VERSION="v1.28.0"
 # Set workring directory
 WORKDIR /workspace
 
-# Copy the Go Modules manifests
+# Copy the Go Modules installation_configuration_files
 COPY go.mod go.sum ./
 COPY vendor/ vendor/
 
@@ -29,6 +29,8 @@ WORKDIR /
 
 COPY --from=builder /workspace/ibu-imager .
 COPY --from=builder /workspace/crictl /usr/bin/
+COPY installation_configuration_files/ installation_configuration_files/
+
 
 RUN yum -y install jq && \
     yum clean all && \
