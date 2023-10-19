@@ -1,17 +1,19 @@
 # IBU Imager
 
-This application will assist user to easily create an OCI seed image for the Image-Based Upgrade (IBU) workflow, using 
+[![Lint Bash Scripts](https://github.com/leo8a/ibu-imager/actions/workflows/bashate_and_shellcheck.yaml/badge.svg)](https://github.com/leo8a/ibu-imager/actions/workflows/bashate_and_shellcheck.yaml)
+
+This application will assist users to easily create an OCI seed image for the Image-Based Upgrade (IBU) workflow, using 
 a simple CLI.
 
 ## Motivation
 
 One of the most important / critical day2 operations for Telecommunications cloud-native deployments is upgrading their
-Container-as-a-Service (CaaS) platforms as quick (and secure!) as possible while minimizing the disrupting time for 
+Container-as-a-Service (CaaS) platforms as quick (and secure!) as possible while minimizing the disruption time of 
 active workloads.
 
-A novel method to approach this problem can be developed based on the 
+A novel method to approach this problem can be derived based on the
 [CoreOS Layering](https://github.com/coreos/enhancements/blob/main/os/coreos-layering.md) concepts, which proposes a 
-new way of updating the underlying Operating System (OS) from OCI-compliant container images.
+new way of updating the underlying Operating System (OS) using OCI-compliant container images.
 
 This tool aims at creating such OCI images plus bundling the main cluster artifacts and configurations in order to 
 provide seed images that can be used during an image-based upgrade procedure that would drastically reduce the 
@@ -49,47 +51,63 @@ go build -o bin/ibu-imager main.go
 Building and pushing the tool as container image.
 
 ```shell
--> make docker-build docker-push 
-podman build -t jumphost.inbound.vz.bos2.lab:8443/lochoa/ibu-imager:4.14.0 -f Dockerfile .
-[1/2] STEP 1/7: FROM registry.hub.docker.com/library/golang:1.19 AS builder
-[1/2] STEP 2/7: WORKDIR /workspace
---> Using cache da22d00e2d1c5aeac0286448662b44b31c9e8d46ac6bf14e003b72df0342dd70
---> da22d00e2d1c
-[1/2] STEP 3/7: COPY go.mod go.sum ./
---> Using cache 0f9d5f76a7c3a3aec156f680a6afa9bc0c7bae076c739dd7aed907a25274e1ea
---> 0f9d5f76a7c3
-[1/2] STEP 4/7: COPY vendor/ vendor/
---> Using cache 9e78223560f0413aa88d6c6c4e2eb9bec3ac7f19bb9d422eb55847881cf8e828
---> 9e78223560f0
-[1/2] STEP 5/7: COPY main.go main.go
---> Using cache 13197fedfb672adaec1fdcaf8cd09fa0f17fdd8aee399bef17ce8e883f8fc3d4
---> 13197fedfb67
-[1/2] STEP 6/7: COPY cmd/ cmd/
---> 2e2b016d3591
-[1/2] STEP 7/7: RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -a -o ibu-imager main.go
---> a9fb405efff5
-[2/2] STEP 1/4: FROM registry.ci.openshift.org/ocp/4.13:tools
-[2/2] STEP 2/4: WORKDIR /
---> Using cache 5ab310acbf191f4c04e0e08ade233b2f1df75e50a58e27babb83c9b60666f578
---> 5ab310acbf19
-[2/2] STEP 3/4: COPY --from=builder /workspace/ibu-imager .
---> cb1915277402
-[2/2] STEP 4/4: ENTRYPOINT ["./ibu-imager"]
-[2/2] COMMIT jumphost.inbound.vz.bos2.lab:8443/lochoa/ibu-imager:4.14.0
---> a60a10028253
-Successfully tagged jumphost.inbound.vz.bos2.lab:8443/lochoa/ibu-imager:4.14.0
-a60a10028253ba2b835df2a436bc51062f816cb6e081b53f3ac016479746ed0f
-podman push jumphost.inbound.vz.bos2.lab:8443/lochoa/ibu-imager:4.14.0 --tls-verify=false
+-> make docker-build docker-push
+podman build -t quay.io/lochoa/ibu-imager:4.14.0 -f Dockerfile .
+[1/2] STEP 1/9: FROM registry.hub.docker.com/library/golang:1.19 AS builder
+Trying to pull registry.hub.docker.com/library/golang:1.19...
 Getting image source signatures
-Copying blob 9c3da9d5a92d skipped: already exists  
-Copying blob 89969c818b60 skipped: already exists  
-Copying blob 2e9427b8c823 skipped: already exists  
-Copying blob dc9cabeae816 skipped: already exists  
-Copying blob 68a3cb1b5de1 skipped: already exists  
-Copying blob d2da84f6e5b7 skipped: already exists  
-Copying blob 63b91bb26cad done  
-Copying blob 492e513dbd66 skipped: already exists  
-Copying config a60a100282 done  
+Copying blob 5ec11cb68eac done   | 
+Copying blob 012c0b3e998c done   | 
+Copying blob 9f13f5a53d11 done   | 
+Copying blob 00046d1e755e done   | 
+Copying blob 190fa1651026 done   | 
+Copying blob 0808c6468790 done   | 
+Copying config 80b76a6c91 done   | 
+Writing manifest to image destination
+[1/2] STEP 2/9: ENV CRIO_VERSION="v1.28.0"
+--> f33ad7e8ba50
+[1/2] STEP 3/9: WORKDIR /workspace
+--> ea41fd2db1a9
+[1/2] STEP 4/9: COPY go.mod go.sum ./
+--> 92a2056f63b9
+[1/2] STEP 5/9: COPY vendor/ vendor/
+--> 10aaa8c0e678
+[1/2] STEP 6/9: COPY main.go main.go
+--> bef5739828bf
+[1/2] STEP 7/9: COPY cmd/ cmd/
+--> 6344ed52a7e9
+[1/2] STEP 8/9: RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -a -o ibu-imager main.go
+--> dbe5da0d5b09
+[1/2] STEP 9/9: RUN curl -sL https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRIO_VERSION/crictl-$CRIO_VERSION-linux-amd64.tar.gz         | tar xvzf - -C . && chmod +x ./crictl
+crictl
+--> aece8a3afed3
+[2/2] STEP 1/6: FROM registry.access.redhat.com/ubi9/ubi:latest
+Trying to pull registry.access.redhat.com/ubi9/ubi:latest...
+Getting image source signatures
+Checking if image destination supports signatures
+Copying blob cc7c08d56aad done   | 
+Copying config 20cef05760 done   | 
+Writing manifest to image destination
+Storing signatures
+[2/2] STEP 2/6: WORKDIR /
+--> dd42896a7332
+[2/2] STEP 3/6: COPY --from=builder /workspace/ibu-imager .
+--> 2d4c7b6153c1
+[2/2] STEP 4/6: COPY --from=builder /workspace/crictl /usr/bin/
+--> 7300e8f6820b
+[2/2] STEP 5/6: RUN yum -y install jq &&     yum clean all &&     rm -rf /var/cache/yum
+[2/2] STEP 6/6: ENTRYPOINT ["./ibu-imager"]
+[2/2] COMMIT quay.io/lochoa/ibu-imager:4.14.0
+--> 4f070f5dc851
+Successfully tagged quay.io/lochoa/ibu-imager:4.14.0
+4f070f5dc851ef5476287fe4a8192f0d6969fc6471cb0e753d5cdd13b6a9c3b6
+podman push quay.io/lochoa/ibu-imager:4.14.0
+Getting image source signatures
+Copying blob 2b35b9c14c2a done   | 
+Copying blob 6f740e943089 done   | 
+Copying blob bcfbd6cf92f8 done   | 
+Copying blob 13843eae2086 done   | 
+Copying config 4f070f5dc8 done   | 
 Writing manifest to image destination
 ```
 
@@ -130,9 +148,12 @@ Use "ibu-imager [command] --help" for more information about a command.
 To create an IBU seed image out of your Single Node OpenShift (SNO), run the following command directly on the node:
 
 ```shell
--> podman run -v /var:/var -v /var/lib:/var/lib -v /var/run:/var/run -v /etc:/etc -v /run/systemd/journal/socket:/run/systemd/journal/socket -v /tmp:/tmp \
-              --privileged --pid=host --rm --network=host ${LOCAL_REGISTRY}/lochoa/ibu-imager:4.14.0 create \
-              --authfile ${PATH_TO_AUTH_FILE} --registry ${TARGET_REGISTRY_FOR_OCI_IMAGES}
+-> podman run --privileged --pid=host --rm --net=host \
+				-v /etc:/etc \
+ 				-v /var:/var \
+ 				-v /var/run:/var/run \
+ 				-v /run/systemd/journal/socket:/run/systemd/journal/socket \
+ 				quay.io/lochoa/ibu-imager:4.14.0 create --authfile /var/lib/kubelet/config.json --registry ${LOCAL_USER_REGISTRY}
 
  ___ ____  _   _            ___                                 
 |_ _| __ )| | | |          |_ _|_ __ ___   __ _  __ _  ___ _ __ 
@@ -145,19 +166,18 @@ To create an IBU seed image out of your Single Node OpenShift (SNO), run the fol
 	
 time="2023-09-22 10:18:58" level=info msg="OCI image creation has started"
 time="2023-09-22 10:18:58" level=info msg="Saving list of running containers and clusterversion."
-time="2023-09-22 10:18:58" level=info msg="Skipping list of containers and clusterversion already exists."
+time="2023-09-22 10:18:58" level=info msg="List of containers, catalogsources, and clusterversion saved successfully."
 time="2023-09-22 10:18:58" level=info msg="Stop kubelet service"
 time="2023-09-22 10:18:58" level=info msg="Stopping containers and CRI-O runtime."
-time="2023-09-22 10:18:58" level=info msg="Skipping running containers and CRI-O engine already stopped."
+time="2023-09-22 10:18:58" level=info msg="Running containers and CRI-O engine stopped successfully."
 time="2023-09-22 10:18:58" level=info msg="Create backup datadir"
-time="2023-09-22 10:18:58" level=info msg="Skipping var backup as it already exists."
-time="2023-09-22 10:18:58" level=info msg="Skipping etc backup as it already exists."
-time="2023-09-22 10:18:58" level=info msg="Skipping rpm-ostree backup as it already exists."
-time="2023-09-22 10:18:58" level=info msg="Skipping mco-currentconfig backup as it already exists."
-time="2023-09-22 10:18:58" level=info msg="Encapsulate and push backup OCI image."
-time="2023-09-22 10:19:05" level=info msg="Encapsulate and push base OCI image."
+time="2023-09-22 10:18:58" level=info msg="Backup of /var created successfully."
+time="2023-09-22 10:18:58" level=info msg="Backup of /etc created successfully."
+time="2023-09-22 10:18:58" level=info msg="Backup of ostree created successfully."
+time="2023-09-22 10:18:58" level=info msg="Backup of rpm-ostree.json created successfully."
+time="2023-09-22 10:18:58" level=info msg="Backup of mco-currentconfig created successfully."
+time="2023-09-22 10:19:05" level=info msg="Backup of .origin created successfully."
 time="2023-09-22 10:21:45" level=info msg="Encapsulate and push parent OCI image."
-time="2023-09-22 10:21:45" level=info msg="OCI image has a parent commit to be encapsulated."
 time="2023-09-22 10:24:21" level=info msg="OCI image created successfully!"
 ```
 
@@ -173,3 +193,13 @@ time="2023-09-22 10:24:21" level=info msg="OCI image created successfully!"
 - [ ] Fix all code TODO comments
 
 </details>
+
+## Contributors
+
+IBU Imager is built and maintained by our growing community of contributors 🏆!
+
+<a href="https://github.com/leo8a/ibu-imager/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=leo8a/ibu-imager" />
+</a>
+
+Made with [contributors-img](https://contrib.rocks).

@@ -10,7 +10,7 @@ ENGINE ?= podman
 
 # IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
 # This variable is used to construct full image tags for bundle and catalog images.
-IMAGE_TAG_BASE ?= jumphost.inbound.vz.bos2.lab:8443/lochoa/ibu-imager
+IMAGE_TAG_BASE ?= quay.io/lochoa/ibu-imager
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
