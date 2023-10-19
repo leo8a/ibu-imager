@@ -2,7 +2,7 @@
 
 # Set the ShellCheck version and binary path
 shellcheck_version="v0.7.2"
-shellcheck_binary="$(go env GOPATH)/bin/shellcheck"
+shellcheck_binary="./bin/shellcheck"
 
 
 function cleanup {

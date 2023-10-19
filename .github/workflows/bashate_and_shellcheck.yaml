@@ -1,0 +1,29 @@
+name: Lint Bash Scripts
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  lint:
+    name: Run Bashate and ShellCheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build tool
+        run: |
+          make build  # Creates the ./bin directory required by shellcheck afterwards
+        shell: bash
+
+      - name: Run ShellCheck
+        run: |
+          make shellcheck  # Execute the shellcheck target in the Makefile
+        shell: bash
+
+      - name: Run Bashate
+        run: |
+          make bashate  # Execute the bashate target in the Makefile
+        shell: bash
