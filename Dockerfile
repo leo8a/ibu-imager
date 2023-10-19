@@ -29,5 +29,6 @@ WORKDIR /
 
 COPY --from=builder /workspace/ibu-imager .
 COPY --from=builder /workspace/crictl /usr/bin/
+COPY installation_configuration_files/ installation_configuration_files/
 
 ENTRYPOINT ["./ibu-imager"]

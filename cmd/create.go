@@ -19,9 +19,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/godbus/dbus"
+	cp "github.com/otiai10/copy"
 	"github.com/spf13/cobra"
 )
 
@@ -80,6 +82,11 @@ func create() {
 	//
 	log.Println("Saving list of running containers, catalogsources, and clusterversion.")
 
+	err = copyConfigurationFiles()
+	if err != nil {
+		check(err)
+	}
+
 	// Check if the file /var/tmp/container_list.done does not exist
 	if _, err = os.Stat("/var/tmp/container_list.done"); os.IsNotExist(err) {
 
@@ -122,6 +129,10 @@ func create() {
 
 	// Execute a D-Bus call to stop the kubelet service
 	err = systemdObj.Call("org.freedesktop.systemd1.Manager.StopUnit", 0, "kubelet.service", "replace").Err
+	check(err)
+
+	log.Println("Disabling kubelet service")
+	_, err = runInHostNamespace("systemctl", "disable", "kubelet.service")
 	check(err)
 
 	//
@@ -317,4 +328,37 @@ func create() {
 	check(err)
 
 	log.Printf("OCI image created successfully!")
+}
+
+func copyConfigurationFiles() error {
+	// copy scripts
+	err := copyConfigurationScripts()
+	if err != nil {
+		return err
+	}
+
+	return handleServices()
+}
+
+func copyConfigurationScripts() error {
+	log.Infof("Copying installation_configuration_files/scripts to local/bin")
+	return cp.Copy("installation_configuration_files/scripts", "/var/usrlocal/bin", cp.Options{AddPermission: os.FileMode(777)})
+}
+
+func handleServices() error {
+	dir := "installation_configuration_files/services"
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		log.Infof("Creating service %s", info.Name())
+		err = cp.Copy(filepath.Join(dir, info.Name()), filepath.Join("/etc/systemd/system/", info.Name()))
+		if err != nil {
+			return err
+		}
+		log.Infof("Enabling service %s", info.Name())
+		_, err = runInHostNamespace("systemctl", "enable", info.Name())
+		return err
+	})
+	return err
 }
