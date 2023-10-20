@@ -153,7 +153,9 @@ To create an IBU seed image out of your Single Node OpenShift (SNO), run the fol
  				-v /var:/var \
  				-v /var/run:/var/run \
  				-v /run/systemd/journal/socket:/run/systemd/journal/socket \
- 				quay.io/lochoa/ibu-imager:4.14.0 create --authfile /var/lib/kubelet/config.json --registry ${LOCAL_USER_REGISTRY}
+ 				quay.io/lochoa/ibu-imager:4.14.0 create --authfile /var/lib/kubelet/config.json \
+ 				                                        --registry ${LOCAL_USER_REGISTRY} \
+ 				                                        --recert-image ${RECERT_CONTAINER_IMAGE}
 
  ___ ____  _   _            ___                                 
 |_ _| __ )| | | |          |_ _|_ __ ___   __ _  __ _  ___ _ __ 
@@ -181,8 +183,17 @@ time="2023-09-22 10:21:45" level=info msg="Encapsulate and push parent OCI image
 time="2023-09-22 10:24:21" level=info msg="OCI image created successfully!"
 ```
 
-> **Note:** For a disconnected environment, first mirror the `ibu-imager` container image to your local registry using 
-> [skopeo](https://github.com/containers/skopeo) or a similar tool.
+#### Disconnected environments
+
+For a disconnected environments, first mirror the `ibu-imager` container image to your local registry using 
+[skopeo](https://github.com/containers/skopeo) or a similar tool.
+
+Additionally, you'd need to mirror the [recert](https://github.com/rh-ecosystem-edge/recert) tool, which is used to 
+perform some checks in the seed SNO cluster.
+
+```shell
+skopeo copy docker://quay.io/edge-infrastructure/recert docker://${LOCAL_REGISTRY}/edge-infrastructure/recert
+```
 
 ## TODO
 
