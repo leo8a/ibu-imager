@@ -1,0 +1,32 @@
+name: Pull Request Workflow
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+
+jobs:
+
+  lint_bash:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: make build           # Build Imager tool
+      - run: make shellcheck      # Run ShellCheck
+      - run: make bashate         # Run Bashate
+
+  lint_golang:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "stable"
+      - uses: golangci/golangci-lint-action@v3
+        with:
+          version: "latest"
+#      - run: make generate
