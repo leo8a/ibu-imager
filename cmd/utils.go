@@ -17,8 +17,6 @@ limitations under the License.
 package cmd
 
 import (
-	"bufio"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -36,12 +34,6 @@ const (
 	// Default kubeconfigFile location
 	kubeconfigFile = "/etc/kubernetes/static-pod-resources/kube-apiserver-certs/secrets/node-kubeconfigs/lb-ext.kubeconfig"
 )
-
-// containerFileContent is the Dockerfile content for the IBU seed image
-const containerFileContent = `
-FROM scratch
-COPY . /
-`
 
 // check is a helper function to simply check for errors
 func check(err error) {
@@ -91,26 +83,4 @@ func runInHostNamespace(command string, args ...string) ([]byte, error) {
 	check(err)
 
 	return rawOutput, nil
-}
-
-// readLineFromFile reads the first line from a file and returns it as a string.
-// It opens the file, scans for the first line, and closes the file when done.
-// If no lines are found or an error occurs, it returns an error.
-func readLineFromFile(filename string) (string, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	if scanner.Scan() {
-		return scanner.Text(), nil
-	}
-
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	return "", fmt.Errorf("no lines found in the file")
 }

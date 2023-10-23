@@ -4,6 +4,7 @@ set -x ## Be more verbose
 
 echo "Reconfiguring single node OpenShift"
 
+# remove this part
 mkdir -p /opt/openshift
 cd /opt/openshift
 
@@ -22,7 +23,7 @@ function umount_config {
     rm -rf /mnt/config
 }
 
-CONFIG_PATH=/opt/openshift/
+CONFIG_PATH=/opt/openshift/cluster-configuration
 NETWORK_CONFIG_PATH=/opt/openshift/network-configuration
 
 echo "Waiting for ${CONFIG_PATH}"
