@@ -16,13 +16,15 @@ limitations under the License.
 
 // This client lifts code from: https://github.com/coreos/rpmostree-client-go/blob/main/pkg/client/client.go
 
-package cmd
+package rpm_ostree_client
 
 import (
 	"encoding/json"
 	"fmt"
 
 	"gopkg.in/yaml.v3"
+
+	"ibu-imager/internal/ops"
 )
 
 // Status summarizes the current worldview of the rpm-ostree daemon.
@@ -57,20 +59,22 @@ type Deployment struct {
 // Client is a handle for interacting with a rpm-ostree based system.
 type Client struct {
 	clientid string
+	ops      ops.Ops
 }
 
 // NewClient creates a new rpm-ostree client.  The client identifier should be a short, unique and ideally machine-readable string.
 // This could be as simple as `examplecorp-management-agent`.
 // If you want to be more verbose, you could use a URL, e.g. `https://gitlab.com/examplecorp/management-agent`.
-func NewClient(id string) Client {
+func NewClient(id string, ops ops.Ops) Client {
 	return Client{
 		clientid: id,
+		ops:      ops,
 	}
 }
 
-func (client *Client) newCmd(args ...string) []byte {
-	rawOutput, _ := runInHostNamespace("rpm-ostree", args...)
-	return rawOutput
+func (c *Client) newCmd(args ...string) []byte {
+	rawOutput, _ := c.ops.RunInHostNamespace("rpm-ostree", args...)
+	return []byte(rawOutput)
 }
 
 // VersionData represents the static information about rpm-ostree.
@@ -85,8 +89,8 @@ type rpmOstreeVersionData struct {
 }
 
 // RpmOstreeVersion returns the running rpm-ostree version number
-func (client *Client) RpmOstreeVersion() (*VersionData, error) {
-	buf := client.newCmd("--version")
+func (c *Client) RpmOstreeVersion() (*VersionData, error) {
+	buf := c.newCmd("--version")
 
 	var q rpmOstreeVersionData
 
@@ -98,9 +102,9 @@ func (client *Client) RpmOstreeVersion() (*VersionData, error) {
 }
 
 // QueryStatus loads the current system state.
-func (client *Client) QueryStatus() (*Status, error) {
+func (c *Client) QueryStatus() (*Status, error) {
 	var q Status
-	buf := client.newCmd("status", "--json")
+	buf := c.newCmd("status", "--json")
 
 	if err := json.Unmarshal(buf, &q); err != nil {
 		return nil, fmt.Errorf("failed to parse `rpm-ostree status --json` output: %w", err)

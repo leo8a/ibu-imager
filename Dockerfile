@@ -13,6 +13,7 @@ COPY vendor/ vendor/
 # Copy the go source
 COPY main.go main.go
 COPY cmd/ cmd/
+COPY internal/ internal/
 
 # Build the binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -mod=vendor -a -o ibu-imager main.go
