@@ -97,7 +97,7 @@ func copyConfigurationFiles(ops ops.Ops) error {
 
 func copyConfigurationScripts() error {
 	log.Infof("Copying installation_configuration_files/scripts to local/bin")
-	return cp.Copy("installation_configuration_files/scripts", "/var/usrlocal/bin", cp.Options{AddPermission: os.FileMode(777)})
+	return cp.Copy("installation_configuration_files/scripts", "/var/usrlocal/bin", cp.Options{AddPermission: os.FileMode(0777)})
 }
 
 func handleServices(ops ops.Ops) error {
@@ -107,13 +107,13 @@ func handleServices(ops ops.Ops) error {
 			return nil
 		}
 		log.Infof("Creating service %s", info.Name())
-		err = cp.Copy(filepath.Join(dir, info.Name()), filepath.Join("/etc/systemd/system/", info.Name()))
-		if err != nil {
-			return err
+		errC := cp.Copy(filepath.Join(dir, info.Name()), filepath.Join("/etc/systemd/system/", info.Name()))
+		if errC != nil {
+			return errC
 		}
 		log.Infof("Enabling service %s", info.Name())
-		_, err = ops.SystemctlAction("enable", info.Name())
-		return err
+		_, errC = ops.SystemctlAction("enable", info.Name())
+		return errC
 	})
 	return err
 }

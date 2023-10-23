@@ -41,6 +41,15 @@ bashate: ## Run bashate
 	@echo "Running bashate"
 	hack/bashate.sh
 
+lint: vendor-diff
+	golangci-lint run -v
+
+vendor-diff:
+	go mod vendor && git diff --exit-code vendor
+
+generate:
+	go generate $(shell go list ./...)
+	$(MAKE) fmt
 
 ##@ Build
 
