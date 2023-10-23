@@ -14,6 +14,10 @@ import (
 	ostree "ibu-imager/internal/ostree_client"
 )
 
+const (
+	varFolder = "/var"
+)
+
 // containerFileContent is the Dockerfile content for the IBU seed image
 const containerFileContent = `
 FROM scratch
@@ -24,7 +28,7 @@ COPY . /
 type SeedCreator struct {
 	log               *logrus.Logger
 	ops               ops.Ops
-	ostreeClient      ostree.Client
+	ostreeClient      *ostree.Client
 	backupDir         string
 	kubeconfig        string
 	containerRegistry string
@@ -32,7 +36,7 @@ type SeedCreator struct {
 	authFile          string
 }
 
-func NewSeedCreator(log *logrus.Logger, ops ops.Ops, ostreeClient ostree.Client, backupDir,
+func NewSeedCreator(log *logrus.Logger, ops ops.Ops, ostreeClient *ostree.Client, backupDir,
 	kubeconfig, containerRegistry, backupTag, authFile string) *SeedCreator {
 	return &SeedCreator{
 		log:               log,
@@ -181,7 +185,7 @@ func (s *SeedCreator) stopServices() error {
 
 func (s *SeedCreator) backupVar() error {
 	// Check if the backup file for /var doesn't exist
-	varTarFile := s.backupDir + "/var.tgz"
+	varTarFile := path.Join(s.backupDir, "var.tgz")
 	_, err := os.Stat(varTarFile)
 	if err == nil || !os.IsNotExist(err) {
 		return err
@@ -203,7 +207,7 @@ func (s *SeedCreator) backupVar() error {
 		// We're handling the excluded patterns in bash, we need to single quote them to prevent expansion
 		tarArgs = append(tarArgs, "--exclude", fmt.Sprintf("'%s'", pattern))
 	}
-	tarArgs = append(tarArgs, "--selinux", "/var")
+	tarArgs = append(tarArgs, "--selinux", varFolder)
 
 	// Run the tar command
 	_, err = s.ops.RunBashInHostNamespace("tar", tarArgs...)
@@ -211,7 +215,7 @@ func (s *SeedCreator) backupVar() error {
 		return err
 	}
 
-	log.Println("Backup of /var created successfully.")
+	s.log.Infof("Backup of %s created successfully.", varFolder)
 	return nil
 }
 
