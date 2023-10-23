@@ -97,7 +97,7 @@ func (s *SeedCreator) createContainerList() error {
 	if _, err := os.Stat("/var/tmp/container_list.done"); os.IsNotExist(err) {
 		// Execute 'crictl images -o json' command, parse the JSON output and extract image references using 'jq'
 		s.log.Println("Save list of running containers")
-		args := []string{"crictl", "images", "-o", "json", "|", "jq", "-r", "'.images[] | .repoDigests[], .repoTags[]'",
+		args := []string{"images", "-o", "json", "|", "jq", "-r", "'.images[] | .repoDigests[], .repoTags[]'",
 			">", s.backupDir + "/containers.list"}
 
 		_, err = s.ops.RunBashInHostNamespace("crictl", args...)
