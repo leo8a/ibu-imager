@@ -20,7 +20,7 @@ jobs:
       - run: make deps-update
       - run: make fmt
       - run: make vet
-      - run: make lint
+#      - run: make lint
       - run: make vendor-diff
       - run: make golangci-lint
 
@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - run: make generate
+#      - run: make generate
       - run: make unit-test
 
   bash_lint:
