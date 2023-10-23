@@ -14,6 +14,8 @@ IMAGE_TAG_BASE ?= quay.io/lochoa/ibu-imager
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
+
+# Unittests variables
 TEST_FORMAT ?= standard-verbose
 GOTEST_FLAGS = --format=$(TEST_FORMAT)
 GINKGO_FLAGS = -ginkgo.focus="$(FOCUS)" -ginkgo.v -ginkgo.skip="$(SKIP)"
@@ -31,6 +33,11 @@ vet: ## Run go vet against code.
 	@echo "Running go vet"
 	go vet ./...
 
+.PHONY: lint
+lint: ## Run golint against code.
+	@echo "Running golint"
+	hack/lint.sh
+
 .PHONY: deps-update
 deps-update: ## Run go mod tidy and vendor against code.
 	go mod tidy && go mod vendor
@@ -45,8 +52,10 @@ bashate: ## Run bashate
 	@echo "Running bashate"
 	hack/bashate.sh
 
-lint: vendor-diff
-	golangci-lint run -v
+.PHONY: golangci-lint
+golangci-lint: vendor-diff ## Run golangci-lint against code.
+	@echo "Running golangci-lint"
+	hack/golangci-lint.sh
 
 vendor-diff:
 	go mod vendor && git diff --exit-code vendor
@@ -60,6 +69,7 @@ unit-test:
 
 _test: $(REPORTS)
 	gotestsum $(GOTEST_FLAGS) $(TEST) $(GINKGO_FLAGS) -timeout $(TIMEOUT)
+
 ##@ Build
 
 build: deps-update fmt vet ## Build manager binary.
