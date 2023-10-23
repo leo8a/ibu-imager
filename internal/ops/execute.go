@@ -2,13 +2,14 @@ package ops
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"os/exec"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-//go:generate mockgen -source=execute.go -package=execute -destination=mock_execute.go
+//go:generate mockgen -source=execute.go -package=ops -destination=mock_execute.go
 type Execute interface {
 	Execute(command string, args ...string) (string, error)
 }

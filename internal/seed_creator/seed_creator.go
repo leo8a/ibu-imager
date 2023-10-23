@@ -2,12 +2,12 @@ package seed_creator
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"log"
 	"os"
 	"path"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"ibu-imager/internal/ops"

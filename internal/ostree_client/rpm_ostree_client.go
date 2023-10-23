@@ -21,9 +21,10 @@ package rpm_ostree_client
 import (
 	"encoding/json"
 	"fmt"
-	"ibu-imager/internal/ops"
 
 	"gopkg.in/yaml.v3"
+
+	"ibu-imager/internal/ops"
 )
 
 // Status summarizes the current worldview of the rpm-ostree daemon.

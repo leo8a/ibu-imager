@@ -1,9 +1,10 @@
 package ops
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"strings"
 )
 
 //go:generate mockgen -source=ops.go -package=ops -destination=mock_ops.go
