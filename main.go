@@ -19,5 +19,5 @@ package main
 import "ibu-imager/cmd"
 
 func main() {
-	cmd.Execute()
+	_ = cmd.Execute()
 }
