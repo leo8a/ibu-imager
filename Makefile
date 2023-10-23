@@ -14,6 +14,10 @@ IMAGE_TAG_BASE ?= quay.io/lochoa/ibu-imager
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
+TEST_FORMAT ?= standard-verbose
+GOTEST_FLAGS = --format=$(TEST_FORMAT)
+GINKGO_FLAGS = -ginkgo.focus="$(FOCUS)" -ginkgo.v -ginkgo.skip="$(SKIP)"
+
 
 default: help
 
@@ -51,6 +55,11 @@ generate:
 	go generate $(shell go list ./...)
 	$(MAKE) fmt
 
+unit-test:
+	$(MAKE) _test TEST_SCENARIO=unit TIMEOUT=30m TEST="$(or $(TEST),$(shell go list ./...))"
+
+_test: $(REPORTS)
+	gotestsum $(GOTEST_FLAGS) $(TEST) $(GINKGO_FLAGS) -timeout $(TIMEOUT)
 ##@ Build
 
 build: deps-update fmt vet ## Build manager binary.
