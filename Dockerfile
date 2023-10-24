@@ -10,7 +10,7 @@ WORKDIR /workspace
 COPY go.mod go.sum ./
 COPY vendor/ vendor/
 
-# Copy the go source
+# Copy the Go source installation_configuration_files
 COPY main.go main.go
 COPY cmd/ cmd/
 COPY internal/ internal/
@@ -24,12 +24,16 @@ RUN curl -sL https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRI
 
 
 ########### Runtime ##########
-FROM registry.ci.openshift.org/ocp/4.13:tools
+FROM registry.access.redhat.com/ubi9/ubi:latest
 
 WORKDIR /
 
 COPY --from=builder /workspace/ibu-imager .
 COPY --from=builder /workspace/crictl /usr/bin/
 COPY installation_configuration_files/ installation_configuration_files/
+
+RUN yum -y install jq && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 
 ENTRYPOINT ["./ibu-imager"]

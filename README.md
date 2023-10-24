@@ -1,6 +1,6 @@
 # IBU Imager
 
-[![Lint Bash Scripts](https://github.com/leo8a/ibu-imager/actions/workflows/bashate_and_shellcheck.yaml/badge.svg)](https://github.com/leo8a/ibu-imager/actions/workflows/bashate_and_shellcheck.yaml)
+[![CI](https://github.com/leo8a/ibu-imager/actions/workflows/pull_request_workflow.yml/badge.svg)](https://github.com/leo8a/ibu-imager/actions/workflows/pull_request_workflow.yml)
 
 This application will assist users to easily create an OCI seed image for the Image-Based Upgrade (IBU) workflow, using 
 a simple CLI.
