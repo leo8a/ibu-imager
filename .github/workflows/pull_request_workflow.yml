@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+
+jobs:
+
+  golang_lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "stable"
+      - run: make deps-update
+      - run: make fmt
+      - run: make vet
+      - run: make lint
+#      - run: make vendor-diff
+      - run: make golangci-lint
+
+  golang_unittests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "stable"
+      - run: make generate
+      - run: make unit-test
+
+  bash_lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: make build           # Creates the ./bin directory required by shellcheck afterward
+      - run: make shellcheck
+      - run: make bashate
