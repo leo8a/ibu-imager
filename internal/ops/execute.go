@@ -24,7 +24,7 @@ func NewExecutor(logger *logrus.Logger, verbose bool) Execute {
 }
 
 func (e *executor) Execute(command string, args ...string) (string, error) {
-	e.log.Println("Executing ", command, args)
+	e.log.Println("Executing", command, args)
 	cmd := exec.Command(command, args...)
 	var stdoutBytes, stderrBytes bytes.Buffer
 	cmd.Stdout = &stdoutBytes

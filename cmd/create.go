@@ -35,6 +35,9 @@ var authFile string
 // containerRegistry is the registry to push the OCI image
 var containerRegistry string
 
+// recertContainerImage is the container image for the recert tool
+var recertContainerImage string
+
 // createCmd represents the create command
 var createCmd = &cobra.Command{
 	Use:   "create",
@@ -52,6 +55,7 @@ func init() {
 	// Add flags related to container registry
 	createCmd.Flags().StringVarP(&authFile, "authfile", "a", imageRegistryAuthFile, "The path to the authentication file of the container registry.")
 	createCmd.Flags().StringVarP(&containerRegistry, "registry", "r", "", "The container registry used to push the OCI image.")
+	createCmd.Flags().StringVarP(&recertContainerImage, "recert-image", "e", defaultRecertImage, "The recert container image used for cluster pre-checks.")
 }
 
 func create() {
@@ -62,8 +66,13 @@ func create() {
 	// Check if containerRegistry was provided by the user
 	if containerRegistry == "" {
 		fmt.Printf(" *** Please provide a valid container registry to store the created OCI images *** \n")
-		log.Info("Skipping OCI image creation.")
-		return
+		log.Fatal("Skipping OCI image creation.")
+	}
+
+	// Check if recertContainerImage was provided by the user
+	if recertContainerImage == "" {
+		fmt.Printf(" *** Please provide a valid container image for the recert tool *** \n")
+		log.Fatal("Skipping OCI image creation.")
 	}
 
 	op := ops.NewOps(log, ops.NewExecutor(log, true))
@@ -75,7 +84,7 @@ func create() {
 	}
 
 	seedCreator := seed.NewSeedCreator(log, op, rpmOstreeClient, backupDir, kubeconfigFile,
-		containerRegistry, backupTag, authFile)
+		containerRegistry, backupTag, authFile, recertContainerImage, etcdStaticPodFile)
 	err = seedCreator.CreateSeedImage()
 	if err != nil {
 		log.Fatal(err)

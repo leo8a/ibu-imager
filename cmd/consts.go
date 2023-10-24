@@ -21,8 +21,12 @@ const (
 	backupTag = "oneimage"
 	// Pull secret. Written by the machine-config-operator
 	imageRegistryAuthFile = "/var/lib/kubelet/config.json"
+	// defaultRecertImage is the default recert image location
+	defaultRecertImage = "quay.io/edge-infrastructure/recert:latest"
 	// backupDir is the directory where the ostree backup will be
 	backupDir = "/var/tmp/backup"
+	// Default location for etcdStaticPodFile
+	etcdStaticPodFile = "/etc/kubernetes/manifests/etcd-pod.yaml"
 	// Default kubeconfigFile location
 	kubeconfigFile = "/etc/kubernetes/static-pod-resources/kube-apiserver-certs/secrets/node-kubeconfigs/lb-ext.kubeconfig"
 )

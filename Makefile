@@ -90,7 +90,7 @@ docker-build: ## Build container image with the tool.
 	${ENGINE} build -t ${IMG} -f Dockerfile .
 
 docker-push: ## Push container image with the tool.
-	${ENGINE} push ${IMG}
+	${ENGINE} push ${IMG} --tls-verify=false
 
 .PHONY: help
 help:   ## Shows this message.

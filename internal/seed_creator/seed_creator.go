@@ -6,9 +6,11 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 
 	"ibu-imager/internal/ops"
 	ostree "ibu-imager/internal/ostree_client"
@@ -22,27 +24,31 @@ COPY . /
 
 // SeedCreator TODO: move params to Options
 type SeedCreator struct {
-	log               *logrus.Logger
-	ops               ops.Ops
-	ostreeClient      ostree.Client
-	backupDir         string
-	kubeconfig        string
-	containerRegistry string
-	backupTag         string
-	authFile          string
+	log                  *logrus.Logger
+	ops                  ops.Ops
+	ostreeClient         ostree.Client
+	backupDir            string
+	kubeconfig           string
+	containerRegistry    string
+	backupTag            string
+	authFile             string
+	recertContainerImage string
+	etcdStaticPodFile    string
 }
 
 func NewSeedCreator(log *logrus.Logger, ops ops.Ops, ostreeClient ostree.Client, backupDir,
-	kubeconfig, containerRegistry, backupTag, authFile string) *SeedCreator {
+	kubeconfig, containerRegistry, backupTag, authFile, recertContainerImage, etcdStaticPodFile string) *SeedCreator {
 	return &SeedCreator{
-		log:               log,
-		ops:               ops,
-		ostreeClient:      ostreeClient,
-		backupDir:         backupDir,
-		kubeconfig:        kubeconfig,
-		containerRegistry: containerRegistry,
-		backupTag:         backupTag,
-		authFile:          authFile,
+		log:                  log,
+		ops:                  ops,
+		ostreeClient:         ostreeClient,
+		backupDir:            backupDir,
+		kubeconfig:           kubeconfig,
+		containerRegistry:    containerRegistry,
+		backupTag:            backupTag,
+		authFile:             authFile,
+		recertContainerImage: recertContainerImage,
+		etcdStaticPodFile:    etcdStaticPodFile,
 	}
 }
 
@@ -59,6 +65,10 @@ func (s *SeedCreator) CreateSeedImage() error {
 	}
 
 	if err := s.stopServices(); err != nil {
+		return err
+	}
+
+	if err := s.runRecertDryRun(); err != nil {
 		return err
 	}
 
@@ -176,6 +186,69 @@ func (s *SeedCreator) stopServices() error {
 		s.log.Println("Skipping running containers and CRI-O engine already stopped.")
 	}
 
+	return nil
+}
+
+func (s *SeedCreator) runRecertDryRun() error {
+	s.log.Println("Running recert --dry-run to validate seed cluster can be re-certified without errors.")
+
+	// Get etcdImageRaw available for the releaseImage variable,
+	// this is needed by recert to run an unauthenticated etcd server for dry-run pre-checks.
+	etcdImage := getEtcdImageFromStaticDefinition(s)
+
+	// Run unauthenticated etcd server for recert dry-run
+	// This runs a small fake unauthenticated etcd server backed by the actual etcd database,
+	// which is required before running the recert tool.
+	s.log.Info("Run unauthenticated etcd server for recert dry-run")
+	_, err := s.ops.RunInHostNamespace(
+		"podman", []string{"run", "--name recert_etcd",
+			"--detach", "--rm", "--network=host", "--privileged",
+			"--authfile", s.authFile, "--entrypoint", "etcd",
+			"-v", "/var/lib/etcd:/store",
+			etcdImage,
+			"--name", "editor",
+			"--data-dir", "/store"}...)
+	if err != nil {
+		return errors.Wrap(err, "Failed to run recert_etcd container")
+	}
+
+	// TODO: wait for etcd server programmatically
+	s.log.Debug("Wait 10 secs for unauthenticated etcd start serving")
+	time.Sleep(10 * time.Second)
+
+	// Run recert --dry-run tool and save a summary without sensitive data.
+	// This pre-check is useful for validating that a cluster can be re-certified error-free before turning it
+	// into a seed image.
+	s.log.Debug("Run recert --dry-run tool and save a summary without sensitive data")
+	_, err = s.ops.RunInHostNamespace(
+		"podman", []string{"run", "--rm", "--name recert",
+			"--network=host", "--privileged", "--authfile", s.authFile,
+			"-v", s.backupDir + ":/backup",
+			"-v", "/etc/kubernetes:/kubernetes",
+			"-v", "/var/lib/kubelet:/kubelet",
+			"-v", "/etc/machine-config-daemon:/machine-config-daemon",
+			s.recertContainerImage,
+			"--etcd-endpoint", "localhost:2379",
+			"--static-dir", "/kubernetes",
+			"--static-dir", "/kubelet",
+			"--static-dir", "/machine-config-daemon",
+			"--extend-expiration",
+			"--dry-run",
+			"--summary-file-clean",
+			"/backup/recert.summary"}...)
+	if err != nil {
+		return errors.Wrap(err, "Failed to run recert container")
+	}
+
+	// Kill the unauthenticated etcd server
+	s.log.Debug("Kill the unauthenticated etcd server")
+	_, err = s.ops.RunInHostNamespace(
+		"podman", []string{"kill", "recert_etcd"}...)
+	if err != nil {
+		return errors.Wrap(err, "Failed to kill recert_etcd container")
+	}
+
+	log.Println("Recert --dry-run pre-checks and summary created successfully.")
 	return nil
 }
 
@@ -352,4 +425,37 @@ func (s *SeedCreator) backupOstreeOrigin(statusRpmOstree *ostree.Status) error {
 	}
 	log.Println("Backup of .origin created successfully.")
 	return nil
+}
+
+// getEtcdImageFromStaticDefinition reads the static definition of the etcd pod
+// and returns the image by this pod.
+func getEtcdImageFromStaticDefinition(s *SeedCreator) string {
+
+	// Read the YAML file
+	yamlData, err := os.ReadFile(s.etcdStaticPodFile)
+	if err != nil {
+		log.Fatalf("Error reading etcd static pod definition: %v\n", err)
+	}
+
+	// Unmarshal the YAML data
+	var podData map[string]interface{}
+	if err = yaml.Unmarshal(yamlData, &podData); err != nil {
+		log.Fatalf("Error unmarshaling YAML: %v\n", err)
+	}
+
+	// Extract the image name
+	if containers, ok := podData["spec"].(map[string]interface{})["containers"].([]interface{}); ok {
+		for _, container := range containers {
+			if containerMap, isMap := container.(map[string]interface{}); isMap {
+				if name, exists := containerMap["name"].(string); exists && name == "etcd" {
+					if image, exists := containerMap["image"].(string); exists {
+						return image
+					}
+				}
+			}
+		}
+	}
+
+	log.Fatal("etcd container image not found in the YAML.")
+	return ""
 }
