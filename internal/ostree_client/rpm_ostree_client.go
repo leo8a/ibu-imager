@@ -65,8 +65,8 @@ type Client struct {
 // NewClient creates a new rpm-ostree client.  The client identifier should be a short, unique and ideally machine-readable string.
 // This could be as simple as `examplecorp-management-agent`.
 // If you want to be more verbose, you could use a URL, e.g. `https://gitlab.com/examplecorp/management-agent`.
-func NewClient(id string, ops ops.Ops) Client {
-	return Client{
+func NewClient(id string, ops ops.Ops) *Client {
+	return &Client{
 		clientid: id,
 		ops:      ops,
 	}
