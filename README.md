@@ -2,6 +2,10 @@
 
 [![CI](https://github.com/leo8a/ibu-imager/actions/workflows/pull_request_workflow.yml/badge.svg)](https://github.com/leo8a/ibu-imager/actions/workflows/pull_request_workflow.yml)
 
+:warning: The IBU Imager tool **is now part of the lifecycle-agent** project (see 
+[PR#23](https://github.com/openshift-kni/lifecycle-agent/pull/23)), active development has been moved to 
+that [repository](https://github.com/openshift-kni/lifecycle-agent) :warning:
+
 This application will assist users to easily create an OCI seed image for the Image-Based Upgrade (IBU) workflow, using 
 a simple CLI.
 
